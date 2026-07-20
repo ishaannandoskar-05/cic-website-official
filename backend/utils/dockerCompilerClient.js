@@ -89,6 +89,9 @@ import json
 
 ${userCode}
 
+if '${functionName}' not in globals() and 'Solution' in globals():
+    ${functionName} = getattr(Solution(), '${functionName}', None)
+
 _args = json.loads(${JSON.stringify(argsJson)})
 _result = ${functionName}(*_args)
 print(json.dumps(_result, separators=(",", ":")))
