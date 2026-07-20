@@ -203,7 +203,7 @@ export const api = {
       method: 'POST',
       body: { language, code },
     }),
-    getTemplates: () => request('/compiler/templates'),
+    getTemplates: (questId) => request(questId ? `/compiler/templates/${questId}` : '/compiler/templates'),
     getRuntimes:  () => request('/compiler/runtimes'),
   },
 };
