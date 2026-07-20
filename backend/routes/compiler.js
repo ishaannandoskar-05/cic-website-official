@@ -337,6 +337,10 @@ router.get("/templates", protect, (req, res) => {
 });
 
 /** GET /api/compiler/templates/:questId */
+router.get(
+  "/templates/:questId",
+  protect,
+  async (req, res) => {
 
     const quest =
       await Quest.findById(
