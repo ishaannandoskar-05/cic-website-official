@@ -326,11 +326,17 @@ router.get("/runtimes", protect, (req, res) => {
   });
 });
 
-/** GET /api/compiler/templates */
-router.get(
-  "/templates/:questId",
-  protect,
-  async (req, res) => {
+/** GET /api/compiler/templates -- default starter templates (no questId) */
+router.get("/templates", protect, (req, res) => {
+  res.json({
+    Python: "# Write your Python code here\ndef solve():\n    pass\n",
+    Java: "import java.util.*;\n\npublic class Solution {\n    public static void main(String[] args) {\n        // Your code here\n    }\n}",
+    C: "#include <stdio.h>\n\nint main() {\n    // Your code here\n    return 0;\n}",
+    "C++": "#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    // Your code here\n    return 0;\n}",
+  });
+});
+
+/** GET /api/compiler/templates/:questId */
 
     const quest =
       await Quest.findById(
