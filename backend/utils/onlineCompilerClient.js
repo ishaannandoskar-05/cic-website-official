@@ -1,20 +1,15 @@
 import axios from 'axios';
 
-const PISTON_API = 'https://emkc.org/api/v2/piston';
+const JUDGE0_API = 'https://judge0-ce.p.rapidapi.com';
+const JUDGE0_KEY = process.env.JUDGE0_API_KEY || '';
+const USE_RAPIDAPI = !!JUDGE0_KEY;
 
 const LANGUAGE_MAP = {
-  Python: { language: 'python', version: '3.10.0' },
-  Java: { language: 'java', version: '17.0.2' },
-  C: { language: 'c', version: '10.2.0' },
-  'C++': { language: 'cpp', version: '10.2.0' },
+  Python: { id: 71, name: 'Python (3.8.1)' },
+  Java: { id: 62, name: 'Java (OpenJDK 13.0.1)' },
+  C: { id: 50, name: 'C (GCC 9.2.0)' },
+  'C++': { id: 54, name: 'C++ (GCC 9.2.0)' },
 };
-
-export const normalise = (s = '') =>
-  String(s)
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .replace(/\s+/g, '')
-    .trim();
 
 const JAVA_TYPES = {
   int: 'int',
@@ -40,6 +35,13 @@ const generateJavaValue = (type, value) => {
       throw new Error(`Unsupported Java type ${type}`);
   }
 };
+
+export const normalise = (s = '') =>
+  String(s)
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\s+/g, '')
+    .trim();
 
 export const buildSource = (language, userCode, argsJson, quest) => {
   const args = JSON.parse(argsJson || '[]');
@@ -157,37 +159,69 @@ int main() {
   }
 };
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const executeCode = async (language, source, stdin = '', timeoutMs = 8000) => {
   const langConfig = LANGUAGE_MAP[language];
   if (!langConfig) throw new Error(`Unsupported language: ${language}`);
 
+  const headers = USE_RAPIDAPI ? {
+    'X-RapidAPI-Key': JUDGE0_KEY,
+    'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
+    'Content-Type': 'application/json',
+  } : {
+    'Content-Type': 'application/json',
+  };
+
+  const baseUrl = USE_RAPIDAPI ? JUDGE0_API : 'https://judge0-ce.p.rapidapi.com';
+
   try {
-    const response = await axios.post(
-      `${PISTON_API}/execute`,
+    const submitRes = await axios.post(
+      `${baseUrl}/submissions?base64_encoded=false&wait=true`,
       {
-        language: langConfig.language,
-        version: langConfig.version,
-        files: [{ content: source }],
-        stdin,
-        compile_timeout: 10000,
-        run_timeout: Math.min(timeoutMs, 10000),
-        compile_memory_limit: 268435456,
-        run_memory_limit: 268435456,
+        language_id: langConfig.id,
+        source_code: source,
+        stdin: stdin,
+        cpu_time_limit: Math.min(Math.ceil(timeoutMs / 1000), 10),
+        memory_limit: 256000,
       },
-      { timeout: timeoutMs + 5000 }
+      { headers, timeout: timeoutMs + 5000 }
     );
 
-    const { run, compile } = response.data;
+    const token = submitRes.data.token;
 
-    if (compile && compile.code !== 0) {
-      return { error: compile.stderr || compile.output || 'Compilation failed', output: '' };
+    if (USE_RAPIDAPI) {
+      // RapidAPI supports wait=true, so we get result immediately
+      const result = submitRes.data;
+      if (result.status.id <= 2) {
+        return { error: result.stderr || result.compile_output || 'Execution pending', output: result.stdout || '' };
+      }
+      if (result.status.id === 3) {
+        return { error: result.stderr || 'Runtime error', output: result.stdout || '' };
+      }
+      return { output: result.stdout || '', error: null };
     }
 
-    if (run && run.code !== 0) {
-      return { error: run.stderr || run.output || 'Runtime error', output: run.stdout || '' };
-    }
+    // For direct Judge0 (without RapidAPI), poll for result
+    let attempts = 0;
+    const maxAttempts = 20;
+    while (attempts < maxAttempts) {
+      await sleep(500);
+      const resultRes = await axios.get(
+        `${baseUrl}/submissions/${token}?base64_encoded=false`,
+        { headers, timeout: 10000 }
+      );
+      const result = resultRes.data;
 
-    return { output: run?.stdout || '', error: null };
+      if (result.status.id > 2) {
+        if (result.status.id === 3) {
+          return { error: result.stderr || 'Runtime error', output: result.stdout || '' };
+        }
+        return { output: result.stdout || '', error: null };
+      }
+      attempts++;
+    }
+    return { error: 'Execution timed out', output: '' };
   } catch (err) {
     if (err.response?.data?.message) {
       return { error: err.response.data.message, output: '' };
@@ -200,10 +234,5 @@ export const executeCode = async (language, source, stdin = '', timeoutMs = 8000
 };
 
 export const getRuntimes = async () => {
-  try {
-    const response = await axios.get(`${PISTON_API}/runtimes`);
-    return response.data;
-  } catch {
-    return { Python: true, Java: true, C: true, 'C++': true };
-  }
+  return { Python: true, Java: true, C: true, 'C++': true };
 };
