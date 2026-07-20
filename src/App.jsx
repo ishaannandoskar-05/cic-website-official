@@ -5324,6 +5324,41 @@ function DailyQuestPage() {
                   </div>
                 )}
 
+                {/* Function Signature */}
+                {(dailyQuestData?.functionName || dailyQuestData?.parameters) && (
+                  <div className="mt-8">
+                    <h3 className="text-[16px] font-medium mb-4">
+                      Function Signature
+                    </h3>
+                    <div className={`rounded-[16px] p-4 ${dark ? "bg-[#2a2a2a]" : "bg-[#f5f5f7]"}`}>
+                      <div className="flex flex-col gap-2 text-[13px] font-mono">
+                        <p className={`${dark ? "text-[#bbb]" : "text-[#444]"}`}>
+                          <span className={`font-semibold ${dark ? "text-white" : "text-black"}`}>
+                            Function:{" "}
+                          </span>
+                          {dailyQuestData?.functionName || "solve"}
+                        </p>
+                        <p className={`${dark ? "text-[#bbb]" : "text-[#444]"}`}>
+                          <span className={`font-semibold ${dark ? "text-white" : "text-black"}`}>
+                            Parameters:{" "}
+                          </span>
+                          {(dailyQuestData?.parameters || []).map((p, i) => (
+                            <span key={i} className="mx-1">
+                              {p.name}: {p.type}
+                            </span>
+                          ))}
+                        </p>
+                        <p className={`${dark ? "text-[#bbb]" : "text-[#444]"}`}>
+                          <span className={`font-semibold ${dark ? "text-white" : "text-black"}`}>
+                            Returns:{" "}
+                          </span>
+                          {dailyQuestData?.returnType || "int"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Hints */}
                 {(dailyQuestData?.hints || []).length > 0 && (
                   <div className="mt-10">
