@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const JUDGE0_API = process.env.JUDGE0_API_KEY 
   ? 'https://judge0-ce.p.rapidapi.com' 
-  : 'https://judge0.petersamokhin.com';
+  : 'https://ce.judge0.com';
 
 const LANGUAGE_MAP = {
   Python: { id: 71 },
