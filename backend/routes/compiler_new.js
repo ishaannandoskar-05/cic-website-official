@@ -314,4 +314,140 @@ router.get('/templates', protect, (req, res) => {
   res.json(STARTER_TEMPLATES);
 });
 
+/** GET /api/compiler/templates/:questId -- quest-specific templates with correct function name */
+router.get('/templates/:questId', protect, async (req, res) => {
+  const Quest = (await import('../models/Quest.js')).default;
+  const quest = await Quest.findById(req.params.questId).lean();
+  if (!quest) return res.status(404).json({ error: 'Quest not found' });
+
+  const functionName = quest.functionName || 'solve';
+  const returnType = quest.returnType || 'int';
+  const params = quest.parameters || [{ name: 'nums', type: 'int[]' }, { name: 'target', type: 'int' }];
+  const paramNames = params.map(p => p.name).join(', ');
+  const javaParamTypes = params.map(p => {
+    const typeMap = { 'int': 'int', 'int[]': 'int[]', 'int[][]': 'int[][]', 'string': 'String', 'bool': 'boolean' };
+    return `${typeMap[p.type] || 'int'} ${p.name}`;
+  }).join(', ');
+  const defaultReturn = returnType === 'int[]' ? 'new int[]{}' : returnType === 'int[][]' ? 'new int[][]{}' : '0';
+
+  const templates = {
+    Python: `# ${functionName}() receives the test-case arguments directly.
+# The judge calls: ${functionName}(*args) for each test case.
+# Return your answer — do NOT print/use stdin.
+#
+# Example: for input [[2,7,11,15], 9]  →  ${functionName}([2,7,11,15], 9)
+
+def ${functionName}(${paramNames}):
+    # Write your solution here
+    pass
+`,
+
+    Java: `// Write your solution inside Solution class.
+// The judge calls: Solution.${functionName}(arg1, arg2, ...)
+// Return your answer — do NOT print/use stdin.
+// Example: for input [[2,7,11,15], 9] → ${functionName}([2,7,11,15], 9)
+
+public class Solution {
+    public static ${returnType} ${functionName}(${javaParamTypes}) {
+        // Write your solution here
+        return ${defaultReturn};
+    }
+}
+`,
+
+    C: `/* ${functionName}() receives the test-case arguments directly via main().
+   args[0] holds the JSON-array string of test-case inputs.
+   Parse, compute, and printf the JSON result.
+
+   Example: for input [[2,7,11,15], 9]  →  args[0] = "[[2,7,11,15],9]"
+*/
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* Simple int-array parser: fills arr[], returns count */
+int parse_int_array(const char *s, int *arr, int max) {
+    int count = 0;
+    const char *p = s;
+    while (*p && *p != '[') p++;
+    if (*p == '[') p++;
+    while (*p && *p != ']' && count < max) {
+        while (*p == ' ' || *p == ',') p++;
+        if (*p == ']' || !*p) break;
+        arr[count++] = (int)strtol(p, (char**)&p, 10);
+    }
+    return count;
+}
+
+int parse_int(const char *s) { return (int)strtol(s, NULL, 10); }
+
+${returnType} ${functionName}(${params.map(p => {
+  if (p.type === 'int') return `int ${p.name}`;
+  if (p.type === 'int[]') return `int *${p.name}, int ${p.name}_len`;
+  if (p.type === 'int[][]') return `int **${p.name}, int ${p.name}_rows, int ${p.name}_cols`;
+  return `int ${p.name}`;
+}).join(', ')}) {
+    /* Write your solution here */
+    return ${defaultReturn};
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) return 1;
+    const char *argsJson = argv[1];
+
+    /* Parse test-case JSON: [[2,7,11,15],9] */
+    int nums[1024]; int n = parse_int_array(argsJson, nums, 1024);
+    const char *p = argsJson;
+    while (*p && *p != ']') p++;
+    if (*p) p++;
+    while (*p == ',' || *p == ' ') p++;
+    int target = parse_int(p);
+
+    int resultSize = 0;
+    int *result = ${functionName}(nums, n, target, &resultSize);
+
+    printf("[");
+    for (int i = 0; i < resultSize; i++) {
+        if (i > 0) printf(",");
+        printf("%d", result[i]);
+    }
+    printf("]\\n");
+    free(result);
+    return 0;
+}
+`,
+
+    'C++': `// ${functionName}() receives the test-case arguments as JSON.
+// Return your answer as a JSON value.
+// Example: for input [[2,7,11,15], 9]  →  ${functionName} passes the JSON array
+
+#include <iostream>
+#include <vector>
+#include <unordered_map>
+#include <string>
+#include <nlohmann/json.hpp>
+using json = nlohmann::json;
+
+${returnType} ${functionName}(${params.map(p => {
+  const typeMap = { 'int': 'int', 'int[]': 'std::vector<int>', 'int[][]': 'std::vector<std::vector<int>>', 'string': 'std::string', 'bool': 'bool' };
+  return `${typeMap[p.type] || 'int'} ${p.name}`;
+}).join(', ')}) {
+    // Write your solution here
+    return ${defaultReturn};
+}
+
+int main() {
+    std::string argsJson;
+    std::getline(std::cin, argsJson);
+    json args = json::parse(argsJson);
+    // Extract arguments based on quest parameters
+    // Call ${functionName} with extracted args
+    return 0;
+}
+`,
+  };
+
+  res.json(templates);
+});
+
 export default router;
