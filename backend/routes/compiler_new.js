@@ -259,11 +259,15 @@ router.post('/execute', protect, async (req, res) => {
   if (!SUPPORTED.includes(language))
     return res.status(400).json({ success: false, error: `"${language}" not supported. Use: ${SUPPORTED.join(', ')}.` });
 
-  // Fetch quest if questId provided
+  // Fetch quest - use questId if provided, otherwise get the latest (daily) quest
   let quest = null;
   if (questId) {
     const Quest = (await import('../models/Quest.js')).default;
     quest = await Quest.findById(questId);
+  } else {
+    // Fallback to latest quest for daily challenge
+    const Quest = (await import('../models/Quest.js')).default;
+    quest = await Quest.findOne({}).sort({ createdAt: -1 });
   }
 
   try {
