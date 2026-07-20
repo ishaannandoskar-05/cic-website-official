@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const JUDGE0_API = 'https://api.judge0.com';
+const JUDGE0_API = process.env.JUDGE0_API_KEY 
+  ? 'https://judge0-ce.p.rapidapi.com' 
+  : 'https://judge0.petersamokhin.com';
 
 const LANGUAGE_MAP = {
   Python: { id: 71 },
@@ -159,12 +161,18 @@ int main() {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
+const USE_RAPIDAPI = !!process.env.JUDGE0_API_KEY;
+
 export const executeCode = async (language, source, stdin = '', timeoutMs = 8000) => {
   const langConfig = LANGUAGE_MAP[language];
   if (!langConfig) throw new Error(`Unsupported language: ${language}`);
 
   const headers = {
     'Content-Type': 'application/json',
+    ...(USE_RAPIDAPI && {
+      'X-RapidAPI-Key': process.env.JUDGE0_API_KEY,
+      'X-RapidAPI-Host': 'judge0-ce.p.rapidapi.com',
+    }),
   };
 
   try {
