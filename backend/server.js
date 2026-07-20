@@ -17,7 +17,7 @@ import submissionRoutes from './routes/submissions.js';
 import memberRoutes from './routes/members.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import analyticsRoutes from './routes/analytics.js';
-import compilerRoutes from './routes/compiler.js';
+import compilerRoutes from './routes/compiler_new.js';
 
 // Model imports (for seeding)
 import User from './models/User.js';
