@@ -190,13 +190,25 @@ export const executeCode = async (language, source, stdin = '', timeoutMs = 8000
 
     const result = submitRes.data;
 
+    // Judge0 status codes: 1=Queue, 2=Processing, 3=Accepted, 4=Wrong Answer, 5=TLE, 6=CE, 7+=Runtime Errors
     if (result.status.id <= 2) {
       return { error: result.stderr || result.compile_output || 'Execution pending', output: result.stdout || '' };
     }
     if (result.status.id === 3) {
-      return { error: result.stderr || 'Runtime error', output: result.stdout || '' };
+      // Accepted - success!
+      return { output: result.stdout || '', error: null };
     }
-    return { output: result.stdout || '', error: null };
+    if (result.status.id === 4) {
+      return { error: 'Wrong Answer', output: result.stdout || '' };
+    }
+    if (result.status.id === 5) {
+      return { error: 'Time Limit Exceeded', output: result.stdout || '' };
+    }
+    if (result.status.id === 6) {
+      return { error: result.stderr || result.compile_output || 'Compilation Error', output: result.stdout || '' };
+    }
+    // 7+ are runtime errors
+    return { error: result.stderr || 'Runtime error', output: result.stdout || '' };
   } catch (err) {
     if (err.response?.data?.message) {
       return { error: err.response.data.message, output: '' };
