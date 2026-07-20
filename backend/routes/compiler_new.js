@@ -1,6 +1,7 @@
 import express from 'express';
 import { protect } from '../middleware/auth.js';
 import User from '../models/User.js';
+import Quest from '../models/Quest.js';
 import { executeCode, buildSource, normalise } from '../utils/onlineCompilerClient.js';
 
 const router = express.Router();
@@ -153,8 +154,8 @@ json solve(const json& args) {
 // ─────────────────────────────────────────────────────────────
 //  Run a single test case
 // ─────────────────────────────────────────────────────────────
-const runOne = async (language, userCode, argsJson, timeoutMs = 8000) => {
-  const source = buildSource(language, userCode, argsJson);
+const runOne = async (language, userCode, argsJson, quest, timeoutMs = 8000) => {
+  const source = buildSource(language, userCode, argsJson, quest);
   const result = await executeCode(language, source, '', timeoutMs);
   return result;
 };
@@ -164,7 +165,7 @@ const runOne = async (language, userCode, argsJson, timeoutMs = 8000) => {
 //  Each testcase.input must be a valid JSON array of arguments,
 //  e.g.  [[2,7,11,15], 9]   →  solve([2,7,11,15], 9)
 // ─────────────────────────────────────────────────────────────
-const runAll = async (language, userCode, testcases) => {
+const runAll = async (language, userCode, testcases, quest) => {
   const results   = [];
   const times     = [];
   let   allPassed = true;
@@ -172,7 +173,7 @@ const runAll = async (language, userCode, testcases) => {
   if (testcases.length === 0) {
     // Smoke-test with empty args
     const t0 = performance.now();
-    const r  = await runOne(language, userCode, '[]', 8000);
+    const r  = await runOne(language, userCode, '[]', quest, 8000);
     const ms = performance.now() - t0;
     results.push({
       id: 1, input: '(none)', expectedOutput: '(no test cases)',
@@ -188,7 +189,7 @@ const runAll = async (language, userCode, testcases) => {
       const argsJson = tc.input;   // stored as JSON array string in DB
 
       const t0 = performance.now();
-      const r  = await runOne(language, userCode, argsJson, 8000);
+      const r  = await runOne(language, userCode, argsJson, quest, 8000);
       const ms = performance.now() - t0;
 
       // Compare normalised JSON output
@@ -244,12 +245,12 @@ const awardXP = async (userId, xp) => {
 
 /**
  * POST /api/compiler/execute
- * Body: { language, code, testcases }
- *   testcases[].input        — JSON array string of solve() arguments
- *   testcases[].expectedOutput — JSON string of expected return value
+ * Body: { language, code, testcases, questId }
+ *   testcases[].input          -- JSON array string of solve() arguments
+ *   testcases[].expectedOutput -- JSON string of expected return value
  */
 router.post('/execute', protect, async (req, res) => {
-  const { language, code, testcases = [] } = req.body;
+  const { language, code, testcases = [], questId } = req.body;
 
   if (!language || !code)
     return res.status(400).json({ success: false, error: 'language and code are required.' });
@@ -258,11 +259,26 @@ router.post('/execute', protect, async (req, res) => {
   if (!SUPPORTED.includes(language))
     return res.status(400).json({ success: false, error: `"${language}" not supported. Use: ${SUPPORTED.join(', ')}.` });
 
-  try {
-    const { results, allPassed, avgMs, tier, xpAwarded } = await runAll(language, code, testcases);
+  // Fetch quest if questId provided
+  let quest = null;
+  if (questId) {
+    const Quest = (await import('../models/Quest.js')).default;
+    quest = await Quest.findById(questId);
+  }
 
-    if (allPassed && xpAwarded > 0 && req.user?._id)
-      await awardXP(req.user._id, xpAwarded);
+  try {
+    const { results, allPassed, avgMs, tier, xpAwarded } = await runAll(language, code, testcases, quest);
+
+    if (allPassed && xpAwarded > 0 && req.user?._id && req.body.questId) {
+      const user = await User.findById(req.user._id);
+      if (user) {
+        const alreadySolved = (user.solvedQuests || []).some(q => q.toString() === req.body.questId);
+        if (!alreadySolved) {
+          await awardXP(req.user._id, xpAwarded);
+          await User.findByIdAndUpdate(user._id, { $addToSet: { solvedQuests: req.body.questId } });
+        }
+      }
+    }
 
     res.json({
       success:             allPassed,
@@ -270,7 +286,7 @@ router.post('/execute', protect, async (req, res) => {
       results,
       averageTime:         avgMs,
       timeComplexityLabel: tier.label,
-      xpAwarded,
+      xpAwarded:           allPassed && req.body.questId ? xpAwarded : 0,
       passedCount:         results.filter((r) => r.passed).length,
       totalCount:          results.length,
     });
@@ -291,7 +307,8 @@ router.post('/compile', protect, async (req, res) => {
     return res.status(400).json({ success: false, error: `"${language}" not supported.` });
 
   try {
-    const r = await runOne(language, code, '[]', 8000);
+    const dummyQuest = { functionName: 'solve', returnType: 'int', parameters: [] };
+    const r = await runOne(language, code, '[]', dummyQuest, 8000);
     res.json({ success: !r.error, output: r.output, error: r.error });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
