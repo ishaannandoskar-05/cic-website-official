@@ -92,7 +92,7 @@ class Main {
 
   public static void main(String[] args) {
     ${variables.join('\n    ')}
-    ${returnType} result = ${functionName}(${parameterNames});
+    ${returnType} result = Solution.${functionName}(${parameterNames});
     printResult(result);
   }
 }

@@ -42,11 +42,9 @@ def solve(nums, target):
 `,
 
   Java: `// Write your solution inside Solution class.
-// main() receives a JSON-array string of arguments via args[0].
-// Parse what you need, compute the answer, and print it.
-//
-// Example: for input [[2,7,11,15], 9]
-//   args[0] = "[[2,7,11,15],9]"
+// The judge calls: Solution.solve(arg1, arg2, ...)
+// Return your answer — do NOT print/use stdin.
+// Example: for input [[2,7,11,15], 9] → solve([2,7,11,15], 9)
 
 public class Solution {
     public static int[] solve(int[] nums, int target) {
@@ -58,23 +56,6 @@ public class Solution {
             seen.put(nums[i], i);
         }
         return new int[]{};
-    }
-
-    public static void main(String[] args) throws Exception {
-        // Parse args[0] as the test-case JSON array
-        String[] parts = _Runner.splitJsonArray(args[0]);
-        int[] nums   = _Runner.parseIntArray(parts[0]);
-        int   target = _Runner.parseInt(parts[1]);
-
-        int[] result = solve(nums, target);
-        // Print result as JSON array
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < result.length; i++) {
-            if (i > 0) sb.append(",");
-            sb.append(result[i]);
-        }
-        sb.append("]");
-        System.out.println(sb);
     }
 }
 `,
