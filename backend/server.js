@@ -98,21 +98,24 @@ const seedDefaultData = async () => {
       const questCount = await Quest.countDocuments({});
       if (questCount === 0) {
         await Quest.create({
-          title: 'Clone Graph',
-          difficulty: 'Medium',
-          statement: 'Given a reference of a node in a connected undirected graph, return a deep copy of the graph.',
+          title: 'Valid Parentheses',
+          difficulty: 'Easy',
+          statement: 'Given a string s containing just the characters (, ), {, }, [ and ], determine if the input string is valid.',
           hints: [
-            'Use a HashMap to store cloning mapping from original nodes to copies',
-            'Use BFS or DFS for traversal',
+            'Use a stack to track opening brackets',
+            'Match closing brackets with the top of stack',
           ],
           testcases: [
-            { input: '[[[2,4],[1,3],[2,4],[1,3]]]', expectedOutput: '[[2,4],[1,3],[2,4],[1,3]]', explanation: 'Deep copy' },
-            { input: '[[[]]]', expectedOutput: '[[]]', explanation: 'Single node' },
-            { input: '[[]]', expectedOutput: '[]', explanation: 'Empty graph' },
+            { input: '["()"]', expectedOutput: 'true', explanation: 'Simple pair' },
+            { input: '["()[]{}"]', expectedOutput: 'true', explanation: 'Multiple types' },
+            { input: '["(]"]', expectedOutput: 'false', explanation: 'Mismatched' },
           ],
-          tags: ['Graph', 'DFS', 'BFS'],
+          tags: ['Stack', 'String'],
+          functionName: 'isValid',
+          parameters: [{ name: 's', type: 'string' }],
+          returnType: 'bool',
         });
-        console.log('✅ Seeded default Daily Quest: Clone Graph');
+        console.log('✅ Seeded default Daily Quest: Valid Parentheses');
       }
     } catch (error) {
       console.error('ℹ️ Seed error (non-critical):', error.message);
