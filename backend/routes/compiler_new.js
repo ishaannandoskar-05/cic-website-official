@@ -264,10 +264,17 @@ router.post('/execute', protect, async (req, res) => {
   if (questId) {
     const Quest = (await import('../models/Quest.js')).default;
     quest = await Quest.findById(questId);
+    console.log('[compiler] Fetched quest by ID:', questId, 'functionName:', quest?.functionName);
   } else {
     // Fallback to latest quest for daily challenge
     const Quest = (await import('../models/Quest.js')).default;
     quest = await Quest.findOne({}).sort({ createdAt: -1 });
+    console.log('[compiler] Fallback to latest quest:', quest?.title, 'functionName:', quest?.functionName);
+  }
+
+  if (!quest) {
+    console.error('[compiler] No quest found!');
+    return res.status(404).json({ success: false, error: 'No quest found for execution' });
   }
 
   try {
@@ -340,6 +347,8 @@ router.get('/templates/:questId', protect, async (req, res) => {
   const Quest = (await import('../models/Quest.js')).default;
   const quest = await Quest.findById(req.params.questId).lean();
   if (!quest) return res.status(404).json({ error: 'Quest not found' });
+
+  console.log('[compiler] Template request for quest:', req.params.questId, 'functionName:', quest.functionName);
 
   const functionName = quest.functionName || 'solve';
   const returnType = quest.returnType || 'int';
