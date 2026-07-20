@@ -94,29 +94,31 @@ const seedDefaultData = async () => {
         console.log(`🔑 Temporary password (change immediately): ${tempPassword}`);
       }
 
-      // Seed a default quest if none exists
-      const questCount = await Quest.countDocuments({});
-      if (questCount === 0) {
-        await Quest.create({
-          title: 'Valid Parentheses',
-          difficulty: 'Easy',
-          statement: 'Given a string s containing just the characters (, ), {, }, [ and ], determine if the input string is valid.',
-          hints: [
-            'Use a stack to track opening brackets',
-            'Match closing brackets with the top of stack',
-          ],
-          testcases: [
-            { input: '["()"]', expectedOutput: 'true', explanation: 'Simple pair' },
-            { input: '["()[]{}"]', expectedOutput: 'true', explanation: 'Multiple types' },
-            { input: '["(]"]', expectedOutput: 'false', explanation: 'Mismatched' },
-          ],
-          tags: ['Stack', 'String'],
-          functionName: 'isValid',
-          parameters: [{ name: 's', type: 'string' }],
-          returnType: 'bool',
-        });
-        console.log('✅ Seeded default Daily Quest: Valid Parentheses');
-      }
+      // Seed/update default quest (upsert so it always has correct schema)
+      const defaultQuest = {
+        title: 'Valid Parentheses',
+        difficulty: 'Easy',
+        statement: 'Given a string s containing just the characters (, ), {, }, [ and ], determine if the input string is valid.',
+        hints: [
+          'Use a stack to track opening brackets',
+          'Match closing brackets with the top of stack',
+        ],
+        testcases: [
+          { input: '["()"]', expectedOutput: 'true', explanation: 'Simple pair' },
+          { input: '["()[]{}"]', expectedOutput: 'true', explanation: 'Multiple types' },
+          { input: '["(]"]', expectedOutput: 'false', explanation: 'Mismatched' },
+        ],
+        tags: ['Stack', 'String'],
+        functionName: 'isValid',
+        parameters: [{ name: 's', type: 'string' }],
+        returnType: 'bool',
+      };
+      await Quest.findOneAndUpdate(
+        { title: 'Valid Parentheses' },
+        defaultQuest,
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+      console.log('✅ Seeded/updated default Daily Quest: Valid Parentheses');
     } catch (error) {
       console.error('ℹ️ Seed error (non-critical):', error.message);
     }
